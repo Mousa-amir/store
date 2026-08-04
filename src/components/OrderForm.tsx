@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import emailjs from "@emailjs/browser";
 
 const WORD_LIMIT = 100;
 
@@ -12,6 +13,7 @@ export default function OrderForm() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const wordCount = useMemo(() => countWords(message), [message]);
   const isOverLimit = wordCount > WORD_LIMIT;
@@ -22,7 +24,6 @@ export default function OrderForm() {
     const words = value.trim().split(/\s+/).filter(Boolean);
 
     if (words.length > WORD_LIMIT) {
-      // Strict 100-word constraint: automatically truncate overflow text.
       const truncated = words.slice(0, WORD_LIMIT).join(" ");
       setMessage(truncated);
       return;
@@ -31,11 +32,36 @@ export default function OrderForm() {
   };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    if (isOverLimit) {
-      e.preventDefault();
-      return;
-    }
-    setSubmitted(true);
+    e.preventDefault();
+
+    if (isOverLimit || !email || !message) return;
+
+    setLoading(true);
+
+    const templateParams = {
+      user_email: email,
+      product_name: "Custom Order Request",
+      total_price: message,
+    };
+
+    emailjs
+      .send(
+        "service_3av9lsq",
+        "template_6fjus7r",
+        templateParams,
+        "zwXRxuCi3DmA-6QZx"
+      )
+      .then(() => {
+        setSubmitted(true);
+        setLoading(false);
+        setEmail("");
+        setMessage("");
+      })
+      .catch((error) => {
+        console.error("Failed to send order email:", error);
+        alert("Failed to send message. Please try again.");
+        setLoading(false);
+      });
   };
 
   return (
@@ -53,13 +79,9 @@ export default function OrderForm() {
         </div>
 
         <form
-          action="https://formspree.io/f/your-form-id"
-          method="POST"
           onSubmit={handleSubmit}
           className="mt-14 space-y-6 rounded-3xl bg-white p-8 shadow-xl shadow-[#0a1128]/5 ring-1 ring-[#0a1128]/5 sm:p-10"
         >
-          {/* INSERT YOUR VERIFICATION CODE / FORM ENDPOINT HERE LATER */}
-
           <div>
             <label htmlFor="order-email" className="mb-2 block font-accent text-xs uppercase tracking-wide text-[#0a1128]/70">
               User Email Address
@@ -72,7 +94,7 @@ export default function OrderForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-xl border border-[#0a1128]/15 bg-white px-5 py-3.5 font-body text-sm text-[#0a1128] placeholder:text-[#0a1128]/30 focus:border-blue-600"
+              className="w-full rounded-xl border border-[#0a1128]/15 bg-white px-5 py-3.5 font-body text-sm text-[#0a1128] placeholder:text-[#0a1128]/30 focus:border-blue-600 focus:outline-none"
             />
           </div>
 
@@ -90,7 +112,7 @@ export default function OrderForm() {
               value={message}
               onChange={handleMessageChange}
               placeholder="Tell us which piece(s) you'd like, sizing, engraving requests, or a return/exchange reference number…"
-              className={`w-full resize-none rounded-xl border bg-white px-5 py-3.5 font-body text-sm text-[#0a1128] placeholder:text-[#0a1128]/30 transition-colors ${
+              className={`w-full resize-none rounded-xl border bg-white px-5 py-3.5 font-body text-sm text-[#0a1128] placeholder:text-[#0a1128]/30 focus:outline-none transition-colors ${
                 isOverLimit ? "border-red-500 focus:border-red-500" : "border-[#0a1128]/15 focus:border-blue-600"
               }`}
             />
@@ -110,15 +132,15 @@ export default function OrderForm() {
 
           <button
             type="submit"
-            disabled={isOverLimit || !email || !message}
+            disabled={isOverLimit || !email || !message || loading}
             data-cursor-hover
             className={`w-full rounded-full py-4 font-accent text-xs uppercase tracking-[0.2em] transition ${
-              isOverLimit || !email || !message
+              isOverLimit || !email || !message || loading
                 ? "cursor-not-allowed bg-[#0a1128]/20 text-[#0a1128]/50"
                 : "bg-[#0a1128] text-white hover:bg-blue-700"
             }`}
           >
-            {submitted ? "Message Sent ✓" : "Send Order Message"}
+            {loading ? "Sending..." : submitted ? "Message Sent ✓" : "Send Order Message"}
           </button>
 
           <p className="text-center font-body text-[11px] text-[#0a1128]/40">
